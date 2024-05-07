@@ -1,5 +1,7 @@
 # LSTM Model from Scratch
 
+This is an LSTM model for predicting temperature from scratch -- meaning without Tensorflow, Keras, or Scikit-learn!
+
 * Dataset: https://www.bgc-jena.mpg.de/wetter/
 * Used Extra Libraries: pandas, numpy, matplotlib, requests
 
@@ -41,3 +43,8 @@ Some of this includes:
 * data correlation discovery
 * messing around with the dataset size
 * full explainations of what is happening
+
+## Research Paper
+
+We also wrote up a research paper detailing the math and methods we used to develop this project. This can be found at [final-paper.pdf](./final-paper.pdf).
+
