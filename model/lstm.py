@@ -429,11 +429,10 @@ class Model:
         # Create a figure and axis object
         fig, ax = plt.subplots(figsize=(12, 6))
 
+        # Plot predicted data as a scatter plot
         # Plot actual data as a line plot
         ax.plot(time_steps, actual, label='Actual', marker='o')
-
-        # Plot predicted data as a scatter plot
-        ax.scatter(time_steps, predicted, label='Predicted', color='red')
+        ax.scatter(time_steps, predicted, label='Predicted', color='red', zorder=10)
 
         # Add labels and title
         ax.set_xlabel('Time Steps')
