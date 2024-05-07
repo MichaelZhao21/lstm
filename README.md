@@ -31,3 +31,13 @@ python3 main.py
 ## Example Training Rounds
 
 Example training data (experiments with learning rate) is located at [experiments.log](./experiments.log).
+
+## Experimentation Notebook
+
+A lot of experimentation was done to get the code to the state you see here. All of the experimentation code can be seen in the [Jupyter Notebook](./6375_Project_LSTM_Temperature_Predicition_Model.ipynb).
+
+Some of this includes:
+* detailed dataset exploration
+* data correlation discovery
+* messing around with the dataset size
+* full explainations of what is happening
