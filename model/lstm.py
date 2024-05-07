@@ -2,10 +2,11 @@ import numpy as np
 import numpy.typing as npt
 import math
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 class Model:
-    def __init__(self, past_size=24, learn_rate=0.1):
+    def __init__(self, past_size=24, learn_rate=0.01):
         """Initializes the model and defines required functions for backpropogation"""
         # Learning rate
         self.learn_rate = learn_rate
@@ -55,7 +56,7 @@ class Model:
     def pre_process(self, df: pd.DataFrame):
         # Dimensionality Reduction and Downsampling
         # Only keep most correlated columns and every 6 rows (corr. to hours)
-        df_cut = df[
+        self.df_cut = df[
             [
                 "T (degC)",
                 "VPmax (mbar)",
@@ -66,10 +67,10 @@ class Model:
                 "sh (g/kg)",
             ]
         ]
-        df_cut = df_cut[::6].reset_index(drop=True)
+        self.df_cut = self.df_cut[::6].reset_index(drop=True)
 
         # Perform Z-Score Normalization
-        df_normalized = (df_cut - df_cut.mean()) / df_cut.std()
+        df_normalized = (self.df_cut - self.df_cut.mean()) / self.df_cut.std()
 
         # Split data into training, validation, and test sets
         # Split is 70% 20% 10%
@@ -308,7 +309,7 @@ class Model:
             X_val_sub = self.X_validation_sliced[:-epoch_validation_subset]
             y_val_sub = self.y_validation_sliced[:-epoch_validation_subset]
             for ex in range(len(X_val_sub)):
-                sse_validation += self._train_iteration(X_val_sub[ex], y_val_sub[ex])
+                sse_validation += self._test_iteration(X_val_sub[ex], y_val_sub[ex])
             self.mse_validation = sse_validation / len(X_val_sub)
 
             # Save the errors for graphing later
@@ -323,7 +324,7 @@ class Model:
 
         print("Finished training!")
 
-    def test(self, X: npt.NDArray[np.float64], y: npt.NDArray[np.float64]) -> float:
+    def _test_iteration(self, X: npt.NDArray[np.float64], y: npt.NDArray[np.float64]) -> float:
         """Runs a forward propogation step and returns the squared error"""
         # Store previous h_t and c_t for LSTM memory
         prev_ht = 0
@@ -366,6 +367,89 @@ class Model:
 
         # Return error
         return (self.pred - y[-1]) ** 2
+    
+    def test(self) -> tuple[float, list[float]]:
+        """
+        Runs a full test using the test set. Returns the MSE and the results
+        of the predictions. Also saves a few graphs!
+        """
 
-    def test_graph(self):
-        """Uses the test set to create a final testing accuracy and graphs"""
+        ## Run the test data through the network ##
+        print("Running test data through network...")
+
+        sse_test = 0.0
+        preds = []
+
+        # Loop through the test data
+        # for i in range(len(self.X_test_sliced)):
+        #     sse_test += self._test_iteration(self.X_test_sliced[i], self.y_test_sliced[i])
+        #     preds.append(self.pred)
+        # mse_test = sse_test / len(self.X_test_sliced)
+        for i in range(len(self.X_validation_sliced)):
+            sse_test += self._test_iteration(self.X_validation_sliced[i], self.y_validation_sliced[i])
+            preds.append(self.pred)
+        mse_test = sse_test / len(self.y_validation_sliced)
+
+        print("Done! MSE:", mse_test)
+        print("Creating graphs...")
+
+        ## Plot the training and validation errors ##
+
+        training_error = self.epoch_test_smes
+        validation_error = self.epoch_validation_smes
+
+        # Create epochs label
+        epochs = np.arange(1, len(training_error) + 1)
+
+        # Plot training and validation errors
+        plt.plot(epochs, training_error, label='Training Error')
+        plt.plot(epochs, validation_error, label='Validation Error')
+
+        # Add labels and legend
+        plt.xlabel('Epoch')
+        plt.ylabel('Error')
+        plt.title('Training and Validation Errors Over Epochs')
+        plt.legend()
+        plt.xticks(epochs)
+
+        # Show the plot
+        plt.savefig('training_validation_errors.png')
+
+        ## Plot the actual vs predicted values ##
+
+        # Un-normalize the temperature data for plotting
+        std = self.df_cut.std()["T (degC)"]
+        mean = self.df_cut.mean()["T (degC)"]
+        predicted = np.array(preds) * std + mean
+        actual = np.array(self.y_test_sliced[:, -1]) * std + mean
+
+        # Unfortunately we can't plot all datapoints as the graph would be ginormous!
+        actual = actual[:100]
+        predicted = predicted[:100]
+
+        # Generate time steps (consecutive integers corresponding to indices)
+        time_steps = list(range(len(actual)))
+
+        # Create a figure and axis object
+        fig, ax = plt.subplots(figsize=(12, 6))
+
+        # Plot actual data as a line plot
+        ax.plot(time_steps, actual, label='Actual', marker='o')
+
+        # Plot predicted data as a scatter plot
+        ax.scatter(time_steps, predicted, label='Predicted', color='red')
+
+        # Add labels and title
+        ax.set_xlabel('Time Steps')
+        ax.set_ylabel('Temperature')
+        ax.set_title('Actual vs. Predicted Temperature')
+
+        # Add legend
+        ax.legend()
+
+        # Show the plot
+        plt.savefig('actual_vs_predicted.png')
+
+        print("Graphs saved!")
+
+        return mse_test, preds
