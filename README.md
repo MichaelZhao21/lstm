@@ -27,3 +27,7 @@ Run the model and tests with:
 ```bash
 python3 main.py
 ```
+
+## Example Training Rounds
+
+Example training data (experiments with learning rate) is located at [experiments.log](./experiments.log).

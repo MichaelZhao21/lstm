@@ -381,14 +381,10 @@ class Model:
         preds = []
 
         # Loop through the test data
-        # for i in range(len(self.X_test_sliced)):
-        #     sse_test += self._test_iteration(self.X_test_sliced[i], self.y_test_sliced[i])
-        #     preds.append(self.pred)
-        # mse_test = sse_test / len(self.X_test_sliced)
-        for i in range(len(self.X_validation_sliced)):
-            sse_test += self._test_iteration(self.X_validation_sliced[i], self.y_validation_sliced[i])
+        for i in range(len(self.X_test_sliced)):
+            sse_test += self._test_iteration(self.X_test_sliced[i], self.y_test_sliced[i])
             preds.append(self.pred)
-        mse_test = sse_test / len(self.y_validation_sliced)
+        mse_test = sse_test / len(self.X_test_sliced)
 
         print("Done! MSE:", mse_test)
         print("Creating graphs...")

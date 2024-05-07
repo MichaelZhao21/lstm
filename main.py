@@ -8,7 +8,7 @@ def main():
 
     # Load data and create model
     df = load_data()
-    lstm = Model(learn_rate=0.001)
+    lstm = Model(learn_rate=0.005)
     lstm.pre_process(df)
     lstm.setup()
 
