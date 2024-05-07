@@ -54,14 +54,29 @@ def load_data() -> pd.DataFrame:
 
 
 def main():
+    # Download data; can comment this out if data already exists
     download_data()
+
+    # Load data and create model
     df = load_data()
     lstm = Model()
     lstm.pre_process(df)
     lstm.setup()
-    lstm.train(epochs=5)
-    
+
+    # Load model from file; uncomment if continuing training
+    lstm.load()
+    # lstm.past_epochs=20
+
+    # 
+    # lstm.train(epochs=20)
+    # lstm.save()
+
+    lstm.test_graph()
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    import numpy as np
+    print(np.load("epoch_test_smes.npy").tolist())
+    print(np.load("epoch_validation_smes.npy").tolist())
+    

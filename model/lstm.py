@@ -124,31 +124,43 @@ class Model:
         self.pred = 0.0
 
         # Initialize weights to random numbers using Normal Xavier Initialization
-        rand_num = np.vectorize(np.random.normal)
-        self.weights = rand_num(self.weights)
-        self.d_weights = rand_num(self.d_weights)
-        self.d_bias = np.random.normal()
+        limit = np.sqrt(
+            6 / (self.in_dims + self.past_size)
+        )  # Xavier initialization limit
+        self.weights = np.random.uniform(
+            -limit, limit, size=(4, 3, self.in_dims)
+        )  # LSTM gate weights
+        self.d_weights = np.random.uniform(
+            -limit, limit, size=self.in_dims
+        )  # Dense layer weights
+        self.d_bias = np.random.uniform(-limit, limit)  # Dense layer bias
 
         # Keep track of total number of epochs already trained
         self.past_epochs = 0
+        self.epoch_test_smes = []
+        self.epoch_validation_smes = []
 
-    def load_weights(self, weights, d_weights, d_bias):
-        """Load weights from passed in values"""
-        self.weights = weights
-        self.d_weights = d_weights
-        self.d_bias = d_bias
+        print("Finished model setup")
 
     def save(self):
         """Save the weights to a file"""
         np.save("weights.npy", self.weights)
         np.save("d_weights.npy", self.d_weights)
         np.save("d_bias.npy", self.d_bias)
+        np.save("epoch_test_smes.npy", self.epoch_test_smes)
+        np.save("epoch_validation_smes.npy", self.epoch_validation_smes)
+
+        print("All weights and data saved to files")
 
     def load(self):
         """Load the weights from the save files to continue training or testing"""
         self.weights = np.load("weights.npy")
         self.d_weights = np.load("d_weights.npy")
         self.d_bias = np.load("d_bias.npy")
+        self.epoch_test_smes = np.load("epoch_test_smes.npy").tolist()
+        self.epoch_validation_smes = np.load("epoch_validation_smes.npy").tolist()
+
+        print("All weights and data loaded from files")
 
     def _train_iteration(
         self, X: npt.NDArray[np.float64], y: npt.NDArray[np.float64]
@@ -194,7 +206,7 @@ class Model:
 
         ## Dense Layer ##
         # Calculate the weight sums
-        self.pred = sum(self.out[5, -1] * self.d_weights)
+        self.pred = sum(self.out[5, -1] * self.d_weights) + self.d_bias
 
         ### BACKWARD PROPOGATION ###
 
@@ -266,30 +278,50 @@ class Model:
         return (self.pred - y[-1]) ** 2
 
     def train(self, epochs=5):
+        """Trains the model for a given number of epochs"""
+        print("Beginning training...")
+        epoch_total = self.past_epochs + epochs
+
+        # WE NEED TO SPLIT THIS DATASET bc training is TOOOO slow!
+        # Each epoch will only contain 1/10 of the training set bc this runs too slowly
+        # Also each time we will validate on a random 1/10 of the validation set
+        # epoch_train_subset = len(self.X_train_sliced) // 10
+        epoch_train_subset = len(self.X_train_sliced) // 5
+        epoch_validation_subset = len(self.X_validation_sliced) // 5
+
         # Loop through the epochs
         # NOTE: each epoch takes like 2.5 mins :sob:
-        for e in range(epochs):
+        for _ in range(epochs):
+
             # TRAINING: Loop through each training example
             sse_train = 0.0
-            for ex in range(len(self.X_train_sliced)):
-                sse_train += self._train_iteration(
-                    self.X_train_sliced[ex], self.y_train_sliced[ex]
-                )
-            self.mse_train = sse_train / len(self.X_train_sliced)
 
-            # VALIDATION: Run _test_err to get the error for this epoch
+            X_train_sub = self.X_train_sliced[:-epoch_train_subset]
+            y_train_sub = self.y_train_sliced[:-epoch_train_subset]
+            for ex in range(len(X_train_sub)):
+                sse_train += self._train_iteration(X_train_sub[ex], y_train_sub[ex])
+            self.mse_train = sse_train / len(X_train_sub)
+
+            # VALIDATION: Loop through each validation example
             sse_validation = 0.0
-            for ex in range(len(self.X_validation_sliced)):
-                sse_validation += self._train_iteration(
-                    self.X_validation_sliced[ex], self.y_validation_sliced[ex]
-                )
-            self.mse_validation = sse_validation / len(self.X_validation_sliced)
+
+            X_val_sub = self.X_validation_sliced[:-epoch_validation_subset]
+            y_val_sub = self.y_validation_sliced[:-epoch_validation_subset]
+            for ex in range(len(X_val_sub)):
+                sse_validation += self._train_iteration(X_val_sub[ex], y_val_sub[ex])
+            self.mse_validation = sse_validation / len(X_val_sub)
+
+            # Save the errors for graphing later
+            self.epoch_test_smes.append(self.mse_train)
+            self.epoch_validation_smes.append(self.mse_validation)
 
             # Print out info
             self.past_epochs += 1
             print(
-                f"Epoch {self.past_epochs}/{epochs}: [train] {self.mse_train} [validation] {self.mse_validation}"
+                f"Epoch {self.past_epochs}/{epoch_total}: [train] {self.mse_train} [validation] {self.mse_validation}"
             )
+
+        print("Finished training!")
 
     def test(self, X: npt.NDArray[np.float64], y: npt.NDArray[np.float64]) -> float:
         """Runs a forward propogation step and returns the squared error"""
@@ -330,7 +362,7 @@ class Model:
 
         ## Dense Layer ##
         # Calculate the weight sums
-        self.pred = sum(self.out[5, -1] * self.d_weights)
+        self.pred = sum(self.out[5, -1] * self.d_weights) + self.d_bias
 
         # Return error
         return (self.pred - y[-1]) ** 2
